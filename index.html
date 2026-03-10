@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trading Simulator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <h1>📈 Market Trend Analysis And Visualization System</h1>
+    </div>
+    <div class="header-right">
+      <div class="stat-chip">
+        <span class="chip-label">Cash</span>
+        <span class="chip-value green" id="cashDisplay">0</span>
+      </div>
+      <div class="stat-chip">
+        <span class="chip-label">Portfolio</span>
+        <span class="chip-value" id="portfolioVal">0</span>
+      </div>
+      <div class="stat-chip">
+        <span class="chip-label">Total Worth</span>
+        <span class="chip-value bold" id="netWorth">0</span>
+      </div>
+      <select id="currencySelect" onchange="changeCurrency()">
+        <option value="USD">USD $</option>
+        <option value="INR">INR ₹</option>
+        <option value="EUR">EUR €</option>
+        <option value="GBP">GBP £</option>
+        <option value="JPY">JPY ¥</option>
+        <option value="AUD">AUD A$</option>
+      </select>
+      <button class="btn-add-funds" onclick="openFundsModal()">+ Add Funds</button>
+    </div>
+  </header>
+
+  <!-- ── ADD FUNDS MODAL ── -->
+  <div class="modal-overlay" id="fundsModal" onclick="closeFundsModalOutside(event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>💳 Add Funds</h2>
+        <button class="modal-close" onclick="closeFundsModal()">✕</button>
+      </div>
+
+      <!-- Currency + Amount -->
+      <div class="modal-section">
+        <label class="modal-label">Deposit Currency</label>
+        <select id="depositCurrency" onchange="updateDepositPreview()">
+          <option value="USD">USD — US Dollar $</option>
+          <option value="INR">INR — Indian Rupee ₹</option>
+          <option value="EUR">EUR — Euro €</option>
+          <option value="GBP">GBP — British Pound £</option>
+          <option value="JPY">JPY — Japanese Yen ¥</option>
+          <option value="AUD">AUD — Australian Dollar A$</option>
+        </select>
+      </div>
+
+      <div class="modal-section">
+        <label class="modal-label">Amount</label>
+        <div class="amount-row">
+          <span class="amount-sym" id="depositSym">$</span>
+          <input type="number" id="depositAmount" placeholder="0.00" min="1" oninput="updateDepositPreview()">
+        </div>
+        <div class="quick-amounts" id="quickAmounts"></div>
+      </div>
+
+      <!-- Payment methods -->
+      <div class="modal-section">
+        <label class="modal-label">Payment Method</label>
+        <div class="payment-methods" id="paymentMethods"></div>
+      </div>
+
+      <!-- Card details (shown when card selected) -->
+      <div class="modal-section" id="cardDetails" style="display:none">
+        <div class="form-row">
+          <label>Card Number</label>
+          <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" oninput="formatCardNumber(this)">
+        </div>
+        <div class="card-row-2">
+          <div class="form-row" style="flex:1">
+            <label>Expiry</label>
+            <input type="text" id="cardExpiry" placeholder="MM/YY" maxlength="5" oninput="formatExpiry(this)">
+          </div>
+          <div class="form-row" style="flex:1">
+            <label>CVV</label>
+            <input type="text" id="cardCvv" placeholder="123" maxlength="3">
+          </div>
+        </div>
+      </div>
+
+      <!-- Bank transfer details -->
+      <div class="modal-section" id="bankDetails" style="display:none">
+        <div class="form-row">
+          <label>Account Number</label>
+          <input type="text" id="bankAccount" placeholder="Enter account number">
+        </div>
+        <div class="form-row">
+          <label>Routing / IFSC Code</label>
+          <input type="text" id="bankRouting" placeholder="e.g. HDFC0001234">
+        </div>
+      </div>
+
+      <!-- UPI details -->
+      <div class="modal-section" id="upiDetails" style="display:none">
+        <div class="form-row">
+          <label>UPI ID</label>
+          <input type="text" id="upiId" placeholder="yourname@upi">
+        </div>
+      </div>
+
+      <!-- Crypto wallet details -->
+      <div class="modal-section" id="cryptoDetails" style="display:none">
+        <div class="form-row">
+          <label>Wallet Address</label>
+          <input type="text" id="walletAddress" placeholder="0x... or bc1...">
+        </div>
+        <div class="form-row">
+          <label>Network</label>
+          <select id="cryptoNetwork">
+            <option>Ethereum (ERC-20)</option>
+            <option>Bitcoin (BTC)</option>
+            <option>BNB Smart Chain (BEP-20)</option>
+            <option>Solana (SOL)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div class="deposit-preview" id="depositPreview">
+        <div class="dp-row"><span>You deposit</span><span id="dpDeposit">—</span></div>
+        <div class="dp-row"><span>USD equivalent</span><span id="dpUSD">—</span></div>
+        <div class="dp-row"><span>Processing fee</span><span id="dpFee">—</span></div>
+        <div class="dp-row bold"><span>Added to cash</span><span id="dpNet" class="green">—</span></div>
+      </div>
+
+      <button class="btn-confirm-deposit" id="confirmDepositBtn" onclick="confirmDeposit()">
+        Confirm Deposit
+      </button>
+
+      <!-- Deposit history -->
+      <div class="modal-section" id="depositHistorySection" style="display:none">
+        <label class="modal-label" style="margin-bottom:8px">Deposit History</label>
+        <div id="depositHistoryList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- LEFT: Controls -->
+    <aside class="sidebar">
+
+      <!-- Asset selector -->
+      <div class="card">
+        <h2>Select Asset</h2>
+        <div class="asset-buttons" id="assetButtons"></div>
+      </div>
+
+      <!-- Trade form -->
+      <div class="card">
+        <h2>Place Trade</h2>
+
+        <div class="selected-asset" id="selectedAsset">
+          <span class="sa-symbol" id="saSymbol">BTC</span>
+          <span class="sa-price" id="saPrice">$0</span>
+          <span class="sa-change" id="saChange">—</span>
+        </div>
+
+        <div class="form-row">
+          <label>Quantity</label>
+          <input type="number" id="quantityInput" value="1" min="0.01" step="0.01" oninput="updatePreview()">
+        </div>
+
+        <div class="form-row">
+          <label>Stop-Loss <small>(optional)</small></label>
+          <input type="number" id="stopLossInput" placeholder="e.g. 42000">
+        </div>
+
+        <div class="form-row">
+          <label>Take-Profit <small>(optional)</small></label>
+          <input type="number" id="takeProfitInput" placeholder="e.g. 50000">
+        </div>
+
+        <div class="cost-row">
+          <span>Cost:</span>
+          <strong id="costPreview">—</strong>
+        </div>
+
+        <div class="trade-btns">
+          <button class="btn-buy" onclick="buyAsset()">▲ Buy</button>
+          <button class="btn-sell" onclick="sellAsset()">▼ Sell</button>
+        </div>
+      </div>
+
+      <!-- Portfolio -->
+      <div class="card">
+        <h2>Holdings</h2>
+        <div id="holdingsList">
+          <p class="empty">No positions open.</p>
+        </div>
+        <div class="pf-totals" id="pfTotals" style="display:none">
+          <div class="pf-row"><span>Value</span><span id="pfValue">$0</span></div>
+          <div class="pf-row bold"><span>P&amp;L</span><span id="pfPnl">$0</span></div>
+        </div>
+      </div>
+
+      <!-- Trade history -->
+      <div class="card">
+        <h2>Trade History</h2>
+        <div id="tradeHistory">
+          <p class="empty">No trades yet.</p>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- CENTER: Charts -->
+    <main class="main">
+
+      <!-- Asset info bar -->
+      <div class="card asset-bar">
+        <div class="ab-left">
+          <span class="ab-symbol" id="abSymbol">BTC</span>
+          <span class="ab-name" id="abName">Bitcoin</span>
+        </div>
+        <div class="ab-stats">
+          <div class="ab-stat"><div class="ab-label">Price</div><div class="ab-val large" id="abPrice">$0</div></div>
+          <div class="ab-stat"><div class="ab-label">Change</div><div class="ab-val" id="abChange">—</div></div>
+          <div class="ab-stat"><div class="ab-label">High</div><div class="ab-val green" id="abHigh">—</div></div>
+          <div class="ab-stat"><div class="ab-label">Low</div><div class="ab-val red" id="abLow">—</div></div>
+        </div>
+        <div class="signal-box">
+          <div class="sig-label">Signal</div>
+          <div class="sig-value" id="signalText">—</div>
+        </div>
+      </div>
+
+      <!-- Timeframe -->
+      <div class="tf-row">
+        <span>Timeframe:</span>
+        <div class="tf-btns">
+          <button class="tf-btn" onclick="setTimeframe(7, this)">7D</button>
+          <button class="tf-btn active" onclick="setTimeframe(30, this)">30D</button>
+          <button class="tf-btn" onclick="setTimeframe(60, this)">60D</button>
+          <button class="tf-btn" onclick="setTimeframe(90, this)">90D</button>
+        </div>
+      </div>
+
+      <!-- Price chart -->
+      <div class="card chart-card">
+        <h2>Price Chart</h2>
+        <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+      </div>
+
+      <!-- Volume + RSI -->
+      <div class="two-col">
+        <div class="card chart-card">
+          <h2>Volume</h2>
+          <div class="chart-wrap small"><canvas id="volumeChart"></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <h2>RSI (14)</h2>
+          <div class="chart-wrap small"><canvas id="rsiChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Prediction -->
+      <div class="card chart-card">
+        <h2>5-Day Price Forecast</h2>
+        <div class="chart-wrap small"><canvas id="predictionChart"></canvas></div>
+      </div>
+
+      <!-- ── PRICE GROWTH PREDICTOR ── -->
+      <div class="card predictor-card">
+        <div class="predictor-header">
+          <h2>🔮 Price Growth Predictor</h2>
+          <div class="predictor-controls">
+            <div class="ctrl-group">
+              <label>Horizon</label>
+              <div class="seg-btns">
+                <button class="seg-btn" onclick="setHorizon(7,this)">7D</button>
+                <button class="seg-btn active" onclick="setHorizon(14,this)">14D</button>
+                <button class="seg-btn" onclick="setHorizon(30,this)">30D</button>
+              </div>
+            </div>
+            <div class="ctrl-group">
+              <label>Model</label>
+              <div class="seg-btns">
+                <button class="seg-btn active" onclick="setModel('all',this)">All</button>
+                <button class="seg-btn" onclick="setModel('linreg',this)">LinReg</button>
+                <button class="seg-btn" onclick="setModel('ema',this)">EMA</button>
+                <button class="seg-btn" onclick="setModel('momentum',this)">Momentum</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="pred-summary" id="predSummary"></div>
+
+        <!-- Chart -->
+        <div class="chart-wrap pred-chart"><canvas id="predictorChart"></canvas></div>
+
+        <!-- Table -->
+        <div class="pred-table-wrap">
+          <table class="pred-table" id="predTable">
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Linear Reg.</th>
+                <th>EMA Proj.</th>
+                <th>Momentum</th>
+                <th>Consensus</th>
+                <th>vs Today</th>
+              </tr>
+            </thead>
+            <tbody id="predTableBody"></tbody>
+          </table>
+        </div>
+
+        <p class="pred-disclaimer">⚠️ Predictions are based on historical price patterns and are not financial advice.</p>
+      </div>
+
+    </main>
+
+    <!-- RIGHT: Market + Allocation -->
+    <aside class="sidebar right">
+
+      <div class="card">
+        <h2>All Markets</h2>
+        <div id="marketList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Portfolio Allocation</h2>
+        <div class="donut-wrap"><canvas id="allocationChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h2>Stats</h2>
+        <div class="stats-list">
+          <div class="s-row"><span>Trades</span><span id="stTrades">0</span></div>
+          <div class="s-row"><span>Wins</span><span class="green" id="stWins">0</span></div>
+          <div class="s-row"><span>Win Rate</span><span id="stWinRate">—</span></div>
+          <div class="s-row"><span>Volatility</span><span id="stVol">—</span></div>
+          <div class="s-row"><span>Max Drawdown</span><span id="stDD">—</span></div>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <div id="toastBox" class="toast-box"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
